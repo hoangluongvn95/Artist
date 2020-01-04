@@ -1,2 +1,2 @@
-# to change language of repo from HTML to R
+# Change language of repo from HTML to R
     *.html linguist-language=R
