@@ -1,0 +1,122 @@
+---
+title: "Artist"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
+    toc: yes
+---
+
+```{r}
+library(pacman)
+p_load(dplyr,Rspotify,httr,rvest,purrr,XML,jsonlite,janeaustenr,genius,stringr,config)
+```
+
+## Getting Lyrics URL
+```{r}
+song_url <- function(song = NULL, artist = NULL) {
+  artist <- genius::prep_info(artist)
+  song <- genius::prep_info(song)
+  base_url <- "https://www.metrolyrics.com/"
+  query <- paste(song, "lyrics", artist, sep = "-") %>%
+    str_replace_all(" ", "-")
+  url <- paste0(base_url, query, ".html")
+  return(url)
+}
+
+## Example: song_url('i like me better','lauv')
+```
+
+## Extracting Lyrics
+```{r}
+song_lyrics <- function(metro_url){
+  evaluation <- try(metro_url %>% read_html(), silent=T)
+
+  if ("try-error" %in% class(evaluation)) {
+    return(NA)
+  } else
+    metro_url %>% read_html() %>%
+    html_nodes(".verse") %>%
+    html_text() -> words
+
+  words %>%
+    paste(collapse = ' ') %>%
+    cat(sep="\n") %>%
+    str_replace_all("[\r\n]" , ". ")
+}
+
+## Example: song_lyrics('https://www.metrolyrics.com/i-like-me-better-lyrics-lauv.html')
+```
+
+## Accessing Artists' Appearance with Your Sopitfy Account
+```{r}
+artist_appearance = function(artist){
+  Spotify_Key <- spotifyOAuth(app_id = "ASD", "769ef3519e8444238fde9c8981c6371c", "b17e4a7ca0b4426f9962645ba5c74a63")
+
+  lang = Encoding(artist)
+  lang = ifelse(lang == "unknown", "UTF-8", lang)
+  artist = iconv(artist, from=lang, to="ASCII//TRANSLIT")
+  artist_list = try(searchArtist(artist, Spotify_Key), silent = T)
+
+  if (nrow(artist_list) == 0){
+    return("Your search is currently unavailable. We'll do our best to update the system!")
+  }
+
+  artist_id = artist_list$id[1]
+  photo_url <- httr::GET(paste0("https://api.spotify.com/v1/artists/", artist_id), config(token = Spotify_Key))
+  photo_json <- httr::content(photo_url)
+
+  photo_number = length(photo_json$images)
+  if(photo_number <=0){
+    return("Your search is currently unavailable. We'll do our best to update the system!")
+  }
+
+  photo = photo_json$images[[1]]$url
+  return(browseURL(photo))
+}
+
+## Example: artist_appearance('lauv')
+```
+
+## Discovering Artists' Main Genre
+```{r}
+artist_genre = function(artist){
+  Spotify_Key <- spotifyOAuth(app_id = "ASD", "769ef3519e8444238fde9c8981c6371c", "b17e4a7ca0b4426f9962645ba5c74a63")
+  genres = list("rock", "electronic/dance"= c("dance and electronica", "electro house", "electronic", "electropop", "progressive house", "hip house", "house", "eurodance", "dancehall", "dance", "trap"), "soul", "classical/soundtrack", "pop" =c("classical pop", "traditional pop", "power pop", "sunshine pop", "country pop", "pop rap", "pop soul", "pop and chart", "pop"),"hip-hop","rnb","disco", "swing", "folk", "country", "jazz", "blues")
+
+  lang = Encoding(artist)
+  lang = ifelse(lang == "unknown", "UTF-8", lang)
+  artist = iconv(artist, from=lang, to="ASCII//TRANSLIT")
+  artist_list = try(searchArtist(artist, Spotify_Key), silent = T)
+
+  if (nrow(artist_list) == 0){
+    return("Oops! Wanna solve this problem? We're hosting recruiting event at Columbia!")
+  }
+
+  raw_list = artist_list$genre[1]
+  genre_list = str_split(raw_list, ",")[[1]]
+  num_list = NULL
+  for (i in 1:length(genres)){
+    obtain = genre_list %in% genres[i][[1]]
+    total_obtain = sum(obtain)
+    num_list = append(num_list, total_obtain)
+  }
+
+  if (sum(num_list) == 0){
+    return("Oops! Wanna solve this problem? We're hosting recruiting event at Columbia!")
+  }
+
+  if (class(artist_list)=="try-error" ){
+    return("Oops! Wanna solve this problem? We're hosting recruiting event at Columbia!")
+  }
+
+  index = which(num_list == max(num_list))
+  genre_final = names(genres)[index]
+  genre_final = paste0(genre_final,collapse = " & ")
+  return(genre_final)
+}
+
+## Example: artist_genre('lauv')
+```
+
