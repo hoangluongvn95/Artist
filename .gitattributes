@@ -1,3 +1,4 @@
+*.rb linguist-language=R
 *.Rdata text
 *.rdb   binary
 *.rds   binary
